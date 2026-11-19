@@ -31,7 +31,7 @@ class Book:     # 'Book' class to represent the blueprint of each books
         self.current_page = current_page
         self.finish_date = finish_date
 
-    def display(self) -> str:
+    def __str__(self) -> str:
         """Return a readable representation of the book."""
 
         return (
