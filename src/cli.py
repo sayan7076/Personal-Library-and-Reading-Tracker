@@ -1,5 +1,4 @@
 
-
 """Command-line interface for the personal library."""
 
 from datetime import date
@@ -70,6 +69,19 @@ def _add_book(library: Library, data_file: Path) -> None:
     print(f"'{title}' added successfully!")
 
 
+def _display_books(books: list[Book]) -> None:
+    """Display a list of books."""
+
+    if not books:
+        print("No books found.")
+        return
+
+    for index, book in enumerate(books, start=1):
+        print(f"\nBook Number: {index}")
+        print(book)
+        print("-" * 35)
+
+
 def _view_books(library: Library) -> None:
     """Display all books in the library."""
 
@@ -81,42 +93,158 @@ def _view_books(library: Library) -> None:
         print("Your library is empty.")
         return
 
-    for index, book in enumerate(books, start=1):
-        print(f"\nBook Number: {index}")
-        print(book)
-        print("-" * 35)
+    _display_books(books)
 
 
-def _remove_book(library: Library, data_file: Path) -> None:
-    """Remove a selected book from the library."""
+def _select_book(library: Library) -> Book | None:
+    """Let the user select a book from the library."""
 
     books = library.get_all_books()
 
     if not books:
         print("Your library is empty.")
-        return
+        return None
 
-    _view_books(library)
+    _display_books(books)
 
     try:
         book_number = int(
-            input("Enter the book number to remove: ")
+            input("\nEnter book number: ")
         )
     except ValueError:
         print("Please enter a valid number.")
-        return
+        return None
 
-    if book_number < 1 or book_number > len(books):
+    if not 1 <= book_number <= len(books):
         print("Invalid book number.")
-        return
+        return None
 
-    selected_book = books[book_number - 1]
+    return books[book_number - 1]
+
+
+def _remove_book(library: Library, data_file: Path) -> None:
+    """Remove a selected book from the library."""
+
+    selected_book = _select_book(library)
+
+    if selected_book is None:
+        return
 
     library.remove_book(selected_book)
 
     save_books(library.get_all_books(), data_file)
 
     print(f"'{selected_book.title}' removed successfully!")
+
+
+def _update_progress(
+    library: Library,
+    data_file: Path
+) -> None:
+    """Update the reading progress of a selected book."""
+
+    selected_book = _select_book(library)
+
+    if selected_book is None:
+        return
+
+    try:
+        current_page = int(
+            input("Enter your current page: ")
+        )
+    except ValueError:
+        print("Please enter a valid whole number.")
+        return
+
+    try:
+        library.update_progress(selected_book, current_page)
+    except ValueError as error:
+        print(f"Could not update progress: {error}")
+        return
+
+    save_books(library.get_all_books(), data_file)
+
+    print("Reading progress updated successfully!")
+
+
+def _mark_finished(
+    library: Library,
+    data_file: Path
+) -> None:
+    """Mark a selected book as finished."""
+
+    selected_book = _select_book(library)
+
+    if selected_book is None:
+        return
+
+    try:
+        library.mark_finished(selected_book)
+    except ValueError as error:
+        print(f"Could not finish book: {error}")
+        return
+
+    save_books(library.get_all_books(), data_file)
+
+    print(f"'{selected_book.title}' marked as finished!")
+
+
+def _filter_books(library: Library) -> None:
+    """Filter books by reading status or genre."""
+
+    print("\n--- Filter Books ---")
+    print("1. Filter by status")
+    print("2. Filter by genre")
+
+    choice = input("Enter your choice: ").strip()
+
+    if choice == "1":
+
+        status = input(
+            "Enter status (to-read/reading/finished): "
+        ).strip().lower()
+
+        if status not in ("to-read", "reading", "finished"):
+            print("Invalid reading status.")
+            return
+
+        filtered_books = library.get_books_by_status(
+            cast(BookStatus, status)
+        )
+
+    elif choice == "2":
+
+        genre = input("Enter genre: ").strip()
+
+        if not genre:
+            print("Genre cannot be empty.")
+            return
+
+        filtered_books = library.get_books_by_genre(genre)
+
+    else:
+        print("Invalid filter choice.")
+        return
+
+    _display_books(filtered_books)
+
+
+def _search_books(library: Library) -> None:
+    """Search books by title or author."""
+
+    search_term = input(
+        "Enter title or author to search: "
+    ).strip()
+
+    if not search_term:
+        print("Search term cannot be empty.")
+        return
+
+    results = library.search_books(search_term)
+
+    print("\n--- Search Results ---")
+
+    _display_books(results)
 
 
 def run_cli(library: Library, data_file: Path) -> None:
@@ -131,7 +259,11 @@ def run_cli(library: Library, data_file: Path) -> None:
         print("1. Add a book")
         print("2. View all books")
         print("3. Remove a book")
-        print("4. Exit")
+        print("4. Update reading progress")
+        print("5. Mark a book as finished")
+        print("6. Filter books")
+        print("7. Search books")
+        print("8. Exit")
 
         choice = input("\nEnter your choice: ").strip()
 
@@ -147,165 +279,20 @@ def run_cli(library: Library, data_file: Path) -> None:
                 _remove_book(library, data_file)
 
             case "4":
+                _update_progress(library, data_file)
+
+            case "5":
+                _mark_finished(library, data_file)
+
+            case "6":
+                _filter_books(library)
+
+            case "7":
+                _search_books(library)
+
+            case "8":
                 print("Thank you for using Personal Library!")
                 break
 
             case _:
                 print("Invalid choice. Please try again.")
-
-
-
-
-# """Command-line interface for the personal library."""
-
-# from datetime import date
-
-# from src.library import Library
-# from src.models import Book, BookStatus
-# from src.storage import save_books
-
-
-# MENU_OPTIONS = ("Add a book", "View all books", "Remove a book", "Exit",)
-
-
-# def get_menu() -> str:
-#     menu = "\n--- PERSONAL LIBRARY CLI ---\n"
-
-#     for idx, val in enumerate(MENU_OPTIONS):
-#         menu += f"⦿ {idx + 1} - {val}\n"
-
-#     return menu
-
-
-# def add_book(library: Library, data_file) -> None:
-
-#     print("\n--- Add a New Book ---")
-
-#     title = input("Enter book title: ").strip()
-#     author = input("Enter author name: ").strip()
-#     genre = input("Enter genre: ").strip()
-
-#     # title, author, genre (should not be empty)
-#     if not title or not author or not genre:
-#         print("Title, author and genre cannot be empty.")
-#         return
-
-#     # total_pages (should be number and grater than 0)
-#     try:
-#         total_pages = int(input("Enter total pages: "))
-#     except ValueError:
-#         print("Please enter a valid whole number.")
-#         return
-#     if total_pages <= 0:
-#         print("Total pages must be greater than zero.")
-#         return
-
-#     # status in default 'to-read', get changed according to the status
-#     status = input(
-#         "Enter status (to-read/reading/finished): "
-#     ).strip().lower()
-#     if status == "":
-#         status = "to-read"
-#     elif status == "to-read":
-#         status = "to-read"
-#     elif status == "reading":
-#         status = "reading"
-#     elif status == "finished":
-#         status = "finished"
-#     else:
-#         print("Invalid reading status.")
-#         return
-
-#     # if book status is 'finished' then current_page will be the last page i.e. 'total_page'
-#     current_page = total_pages if status == "finished" else 0
-
-#     # add today's date if user add book with status 'finished'
-#     finish_date = date.today() if status == "finished" else None
-
-#     book = Book(
-#         title=title,
-#         author=author,
-#         genre=genre,
-#         total_pages=total_pages,
-#         status=status,
-#         current_page=current_page,
-#         finish_date=finish_date
-#     )
-
-#     library.add_book(book)
-
-#     save_books(library.get_all_books(), data_file)
-
-#     print(f"'{title}' added successfully!")
-
-
-# def view_books(library: Library) -> None:
-
-#     print("\n--- Your Book Collection ---")
-
-#     books = library.get_all_books()
-
-#     if not books:
-#         print("Your library is empty.")
-#         return
-
-#     for idx, book in enumerate(books, start=1):
-#         print(f"\nBook Number: {idx}")
-#         print(book)
-#         print("-" * 35)
-
-
-# def remove_book(library: Library, data_file) -> None:
-
-#     books = library.get_all_books()
-
-#     if not books:
-#         print("Your library is empty.")
-#         return
-
-#     view_books(library)
-
-#     try:
-#         book_number = int(input("Enter the book number to remove: "))
-#     except ValueError:
-#         print("Please enter a valid number.")
-#         return
-
-#     if book_number < 1 or book_number > len(books):
-#         print("Invalid book number.")
-#         return
-
-#     selected_book = books[book_number - 1]
-
-#     library.remove_book(selected_book)
-
-#     save_books(library.get_all_books(), data_file)
-
-#     print(f"'{selected_book.title}' removed successfully!")
-
-
-# def run_cli(library: Library, data_file) -> None:
-
-#     while True:
-
-#         print(get_menu())
-
-#         choice = input("Enter your choice: ").strip()
-
-#         match choice:
-
-#             case "1":
-#                 add_book(library, data_file)
-
-#             case "2":
-#                 view_books(library)
-
-#             case "3":
-#                 remove_book(library, data_file)
-
-#             case "4":
-#                 print("Thank you for using Personal Library!")
-#                 break
-
-#             case _:
-#                 print("Invalid choice. Please try again.")

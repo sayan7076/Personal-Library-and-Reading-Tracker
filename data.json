@@ -4,8 +4,8 @@
         "author": "Programming Language",
         "genre": "Computer Science",
         "total_pages": 10101,
-        "status": "to-read",
-        "current_page": 0,
-        "finish_date": null
+        "status": "finished",
+        "current_page": 10101,
+        "finish_date": "2026-11-19"
     }
 ]
